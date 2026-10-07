@@ -1,6 +1,6 @@
 {
-  "name": "Foul Tracker",
-  "short_name": "Foul Tracker",
+  "name": "Habit Tracker",
+  "short_name": "Habit Tracker",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
