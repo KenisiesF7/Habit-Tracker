@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Habit Tracker</title>
+<link rel="manifest" href="manifest.json"><meta name="theme-color" content="#0e1217">
+<link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+<style>
+:root{--bg:#0e1217;--s:#151b23;--b:#222c38;--t:#d8dee6;--m:#7b8794;--a:#6fb7a8;--w:#d8a47f}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--t);font:15px/1.45 system-ui,Roboto,sans-serif}
+body{padding:env(safe-area-inset-top) 0 calc(70px + env(safe-area-inset-bottom))}
+main{max-width:760px;margin:0 auto;padding:16px}
+section{display:none}section.on{display:block}
+h2{font-size:.75rem;letter-spacing:.08em;text-transform:uppercase;color:var(--m);font-weight:600;margin:22px 0 10px}
+.card{background:var(--s);border:1px solid var(--b);border-radius:14px;padding:16px}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.k,.sub{color:var(--m);font-size:.76rem}.v{font-size:1.55rem;font-weight:600;margin-top:2px}
+button,input,select{font:inherit;color:inherit}
+.btn{background:#1b232d;border:1px solid var(--b);border-radius:10px;padding:9px 14px;cursor:pointer}
+.btn:active{filter:brightness(1.25)}
+.big{width:100%;padding:20px;font-size:1.1rem;font-weight:600;background:#2a2320;border-color:#4a3a30;color:var(--w);border-radius:14px;margin-top:12px}
+input,select{background:#10161d;border:1px solid var(--b);border-radius:10px;padding:10px;width:100%;color-scheme:dark}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}.row>*{flex:1}
+.hero{text-align:center;padding:26px 16px}.hero .v{font-size:3.2rem;color:var(--a)}
+nav{position:fixed;bottom:0;left:0;right:0;display:flex;background:#0b0f14;border-top:1px solid var(--b);padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;background:none;border:0;color:var(--m);padding:15px 0;font-size:.8rem}
+nav button.on{color:var(--a)}
+.ch{width:100%;touch-action:pan-y}
+.item{display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--b)}
+.item:last-child{border:0}.item .btn{padding:4px 10px;flex:none}
+#toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(78px + env(safe-area-inset-bottom));background:#222c38;border:1px solid #2f3b49;border-radius:12px;padding:8px 8px 8px 16px;display:none;gap:12px;align-items:center;z-index:9}
+.p{margin:6px 0}.tiles{display:grid;grid-template-columns:1fr 1fr;gap:10px}.tile{background:#10161d;border:1px solid var(--b);border-radius:12px;padding:12px}.tile .v{font-size:1.2rem;font-weight:600}.tg{display:flex;justify-content:space-between;font-size:.85rem;margin:10px 0 4px}.bar{height:6px;background:#10161d;border-radius:3px;overflow:hidden}.bar i{display:block;height:100%;background:var(--a);border-radius:3px}.btn.act{border-color:var(--a);color:var(--a)}.lab{display:flex;gap:8px;align-items:center;margin-top:10px;color:var(--m);font-size:.85rem}.lab input{width:auto}
+</style></head><body><main>
+<section id="today" class="on">
+ <div class="card hero"><div class="k">Days since last record</div><div class="v" id="cur">0</div><div class="sub" id="curs"></div></div>
+ <h2>Log</h2>
+ <div class="card">
+  <div class="row"><select id="tag"></select><input id="note" placeholder="Optional note" maxlength="200"></div>
+  <label class="lab"><input type="checkbox" id="bd"> Happened earlier</label>
+  <input type="datetime-local" id="when" style="display:none;margin-top:8px">
+  <button class="btn big" id="logb">+1 Log incident</button>
+ </div>
+ <h2>Overview</h2><div class="grid" id="cards"></div>
+ <div class="card" id="fcard" style="margin-top:10px"></div>
+</section>
+<section id="ins">
+ <h2>Trend</h2>
+ <div class="card"><div class="row" id="rng"><button class="btn" data-d="30">30D</button><button class="btn" data-d="90">90D</button><button class="btn" data-d="ytd">YTD</button><button class="btn" data-d="0">All</button></div>
+ <div class="row" id="fw" style="margin-top:8px;align-items:center"><span class="sub" style="flex:none">Forecast window</span><button class="btn" data-w="7">7d</button><button class="btn" data-w="14">14d</button><button class="btn" data-w="30">30d</button></div>
+ <div id="main" class="ch" style="height:480px;margin-top:8px"></div>
+ <div class="sub">Drag or pinch the chart to pan and zoom. In the lower panel, below zero means your average is falling (improving).</div></div>
+ <h2>Day of week</h2><div class="card"><div id="dow" class="ch" style="height:200px"></div></div>
+ <h2>Time of day</h2><div class="card"><div id="hod" class="ch" style="height:200px"></div><div class="sub" id="hnote"></div></div>
+ <h2>Patterns</h2><div class="card" id="pat"></div>
+ <h2>Streaks</h2><div class="card" id="strk"></div>
+ <h2>Calendar</h2><div class="card"><div id="cal" class="ch" style="height:170px"></div><div class="sub">Dark green = clean day; warmer = more records (brightest = 3 or more).</div></div>
+</section>
+<section id="hist"><h2>History</h2><div class="card" id="hl"></div></section>
+<section id="set">
+ <h2>Tracking</h2><div class="card"><div class="k">Tracking start date</div><input type="date" id="start"></div>
+ <h2>Reminders</h2><div class="card"><div class="k">Daily check-in time</div><input type="time" id="remind">
+  <button class="btn" id="notif" style="margin-top:10px">Enable reminders</button>
+  <div class="sub p">Fires when the app is opened after that time, plus a best-effort background check Android decides the timing of.</div></div>
+ <h2>Data</h2><div class="card"><div class="row"><button class="btn" id="exj">Export JSON</button><button class="btn" id="exc">Export CSV</button><button class="btn" id="imp">Import</button></div>
+  <input type="file" id="file" accept=".json,application/json" style="display:none">
+  <div class="sub p">Import merges and skips duplicates. Date-only entries are excluded from time-of-day charts.</div>
+  <button class="btn" id="inst" style="display:none;margin-top:6px">Install app</button>
+  <button class="btn" id="wipe" style="margin-top:14px;color:#d98a8a">Delete all data</button></div>
+</section></main>
+<div id="toast"><span id="tm"></span><button class="btn" id="tu">Undo</button></div>
+<nav><button data-t="today" class="on">Today</button><button data-t="ins">Insights</button><button data-t="hist">History</button><button data-t="set">Settings</button></nav>
+<script src="echarts.min.js"></script>
+<script>
+const $=s=>document.querySelector(s),$$=s=>[...document.querySelectorAll(s)];
+const TAGS=['General','Late night','Stress','Tired','Bored','Social'];
+const C={t:'#d8dee6',m:'#7b8794',a:'#6fb7a8',w:'#d8a47f',bl:'#7da3d8',p:'#a98fd1',g:'#222c38'};
+let E=[],st=null,tab='today',S={start:'2026-01-01',remind:'21:00',notif:false,fired:'',fw:30};
+try{Object.assign(S,JSON.parse(localStorage.getItem('ft_s')||'{}'))}catch(e){}
+const save=()=>{try{localStorage.setItem('ft_s',JSON.stringify(S))}catch(e){}};
+const idb=new Promise((res,rej)=>{const r=indexedDB.open('habittracker',1);r.onupgradeneeded=()=>r.result.createObjectStore('e',{keyPath:'id'});r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const tx=async(m,f)=>{const d=await idb;return new Promise((res,rej)=>{const t=d.transaction('e',m);const o=f(t.objectStore('e'));t.oncomplete=()=>res(o&&o.result);t.onerror=()=>rej(t.error)})};
+const put=a=>tx('readwrite',s=>{[].concat(a).forEach(x=>s.put(x))});
+const del=id=>tx('readwrite',s=>{s.delete(id)});
+const clr=()=>tx('readwrite',s=>{s.clear()});
+const all=()=>tx('readonly',s=>s.getAll());
+const p2=n=>String(n).padStart(2,'0');
+const ld=d=>`${d.getFullYear()}-${p2(d.getMonth()+1)}-${p2(d.getDate())}`;
+const pd=s=>{const[a,b,c]=s.split('-').map(Number);return new Date(a,b-1,c)};
+const ad=(s,n)=>{const d=pd(s);d.setDate(d.getDate()+n);return ld(d)};
+const u=s=>{const[a,b,c]=s.split('-').map(Number);return Date.UTC(a,b-1,c)};
+const dd=(a,b)=>Math.round((u(b)-u(a))/864e5);
+const esc=s=>String(s==null?'':s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sum=a=>a.reduce((x,y)=>x+y,0);
+const pct=(a,b)=>b?Math.round(100*a/b)+'%':'–';
+const uid=()=>(crypto.randomUUID?crypto.randomUUID():'e'+Date.now()+Math.random().toString(36).slice(2,8));
+const fmtD=s=>pd(s).toLocaleDateString([],{month:'short',day:'numeric'});
+
+function calc(){
+ const today=ld(new Date()),start=S.start>today?today:S.start,n=dd(start,today)+1;
+ const daily=new Array(n).fill(0),labels=[];
+ for(let i=0;i<n;i++)labels.push(ad(start,i));
+ E.forEach(e=>{const i=dd(start,e.date);if(i>=0&&i<n)daily[i]++});
+ let c=0;const cum=[],avg=[],roll=[],trend=[];
+ daily.forEach((v,i)=>{c+=v;cum.push(c);avg.push(c/(i+1));
+  const w=daily.slice(Math.max(0,i-6),i+1);roll.push(sum(w)/w.length);
+  trend.push(i>=7?avg[i]-avg[i-7]:null)});
+ const W=[7,14,30].includes(S.fw)?S.fw:30,fc=[],gap=[];
+ for(let i=0;i<n;i++){const j=i-W;if(j<6){fc.push(null);gap.push(null);continue}
+  const w=daily.slice(Math.max(0,j-W+1),j+1),e=cum[j]+sum(w)/w.length*W;
+  fc.push(+e.toFixed(2));gap.push(+(cum[i]-e).toFixed(2))}
+ const runs=[];let rs=null;
+ daily.forEach((v,i)=>{if(!v){if(rs===null)rs=i}else if(rs!==null){runs.push([rs,i-1]);rs=null}});
+ if(rs!==null)runs.push([rs,n-1]);
+ runs.sort((a,b)=>(b[1]-b[0])-(a[1]-a[0]));
+ let last=-1;daily.forEach((v,i)=>{if(v)last=i});
+ const dow=[0,0,0,0,0,0,0];
+ E.forEach(e=>{const i=dd(start,e.date);if(i>=0&&i<n)dow[pd(e.date).getDay()]++});
+ const hod=new Array(24).fill(0);let exact=0;
+ E.forEach(e=>{if(e.precision==='exact'&&e.ts){hod[new Date(e.ts).getHours()]++;exact++}});
+ let a0=0,a1=0,b0=0,b1=0,we=0,wed=0,wk=0,wkd=0;
+ for(let i=0;i<n;i++){
+  if(i<n-1){if(daily[i]){a0++;if(daily[i+1])a1++}else{b0++;if(daily[i+1])b1++}}
+  const g=pd(labels[i]).getDay();if(g===0||g===6){we+=daily[i];wed++}else{wk+=daily[i];wkd++}}
+ const tags={};E.forEach(e=>{tags[e.tag]=(tags[e.tag]||0)+1});
+ st={today,start,n,daily,labels,cum,avg,roll,trend,fc,gap,W,runs,cur:n-1-last,total:c,clean:daily.filter(v=>!v).length,
+  best:runs.length?runs[0][1]-runs[0][0]+1:0,dow,hod,exact,a0,a1,b0,b1,we,wed,wk,wkd,tags,
+  w1:sum(daily.slice(-7)),w0:sum(daily.slice(-14,-7)),lastDate:last>=0?labels[last]:null};
+}
+function paintToday(){
+ $('#cur').textContent=st.cur;
+ $('#curs').textContent=st.lastDate?'Last record: '+fmtD(st.lastDate):'No records yet';
+ const card=(k,v,s)=>`<div class="card"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${s}</div></div>`;
+ $('#cards').innerHTML=card('Total',st.total,'since '+fmtD(st.start))+
+  card('Average / day',(st.total/st.n).toFixed(2),'full average to date')+
+  card('Best streak',st.best+' d',st.runs.length?fmtD(st.labels[st.runs[0][0]])+' – '+fmtD(st.labels[st.runs[0][1]]):'–')+
+  card('Clean days',pct(st.clean,st.n),st.clean+' of '+st.n+' days')+
+  card('Last 7 days',st.w1,'previous 7: '+st.w0)+
+  card('7-day rate',(st.w1/7).toFixed(2),'vs '+(st.total/st.n).toFixed(2)+' lifetime');
+ const ex=st.fc[st.n-1];
+ $('#fcard').innerHTML=ex==null?`<div class="k">${st.W}-day pace check</div><div class="sub p">Needs about ${st.W+7} days of data.</div>`:(()=>{const d=+(st.total-ex).toFixed(1);return `<div class="k">${st.W}-day pace check</div><div class="p">${st.W} days ago your pace predicted <b>${ex.toFixed(1)}</b> records by now. You're at <b>${st.total}</b>, which is <b style="color:${d<=0?'var(--a)':'var(--w)'}">${d===0?'exactly on pace':Math.abs(d)+(d<0?' fewer':' more')+' than predicted'}</b>.</div>`})();
+}
+function paintHist(){
+ const L=[...E].sort((a,b)=>b.date.localeCompare(a.date)||((b.ts||0)-(a.ts||0))).slice(0,60);
+ $('#hl').innerHTML=L.length?L.map(e=>`<div class="item"><div><div>${e.date} · ${e.precision==='exact'&&e.ts?new Date(e.ts).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):'date only'}</div><div class="sub">${esc(e.tag)}${e.note?' · '+esc(e.note):''}</div></div><div class="row" style="flex:none"><button class="btn" data-ed="${esc(e.id)}">Edit</button><button class="btn" data-dl="${esc(e.id)}">✕</button></div></div>`).join('')+'<div class="sub p">Showing the latest 60 records.</div>':'<div class="sub">No records yet.</div>';
+}
+const CH={};const gc=id=>CH[id]||(CH[id]=echarts.init($('#'+id)));
+const ax=(o)=>Object.assign({axisLine:{lineStyle:{color:C.g}},axisLabel:{color:C.m},splitLine:{lineStyle:{color:C.g}}},o);
+const TT={trigger:'axis',backgroundColor:'#1b232d',borderColor:C.g,textStyle:{color:C.t}};
+function bar(id,x,y){gc(id).setOption({animation:false,backgroundColor:'transparent',grid:{left:30,right:8,top:10,bottom:24},tooltip:TT,xAxis:ax({type:'category',data:x,splitLine:{show:false}}),yAxis:ax({type:'value',minInterval:1}),series:[{type:'bar',data:y,itemStyle:{borderRadius:[3,3,0,0]}}]},true)}
+function paintCharts(){
+ if(!window.echarts){$('#main').textContent='Chart library missing (echarts.min.js).';return}
+ const ch=gc('main');$$('#fw button').forEach(b=>b.classList.toggle('act',+b.dataset.w===st.W));let keep=null;
+ try{const o=ch.getOption();if(o&&o.dataZoom&&o.dataZoom.length)keep={start:o.dataZoom[0].start,end:o.dataZoom[0].end}}catch(e){}
+ const z=keep||{start:Math.max(0,100-9000/st.n),end:100};
+ const ln=(name,data,col,extra)=>Object.assign({name,type:'line',data,showSymbol:false,lineStyle:{color:col,width:2},itemStyle:{color:col}},extra||{});
+ ch.setOption({backgroundColor:'transparent',animation:false,
+  legend:{top:0,itemGap:10,itemWidth:16,itemHeight:8,textStyle:{color:C.m,fontSize:11},selected:{'7-day rate':false}},
+  tooltip:Object.assign({valueFormatter:v=>v==null?'–':+(+v).toFixed(3)},TT),
+  axisPointer:{link:[{xAxisIndex:'all'}]},
+  grid:[{left:42,right:42,top:92,height:225},{left:42,right:42,top:352,height:66}],
+  xAxis:[ax({type:'category',data:st.labels,gridIndex:0,axisLabel:{show:false},splitLine:{show:false}}),ax({type:'category',data:st.labels,gridIndex:1,axisLabel:{color:C.m,formatter:v=>v.slice(5)},splitLine:{show:false}})],
+  yAxis:[ax({type:'value',gridIndex:0,name:'total',nameTextStyle:{color:C.a}}),ax({type:'value',gridIndex:0,position:'right',splitLine:{show:false},name:'per day',nameTextStyle:{color:C.bl}}),ax({type:'value',gridIndex:1,splitNumber:2,name:'Δ avg / wk',nameTextStyle:{color:C.m}}),ax({type:'value',gridIndex:1,position:'right',splitNumber:2,splitLine:{show:false},name:'gap',nameTextStyle:{color:C.p}})],
+  series:[ln('Cumulative',st.cum,C.a,{lineStyle:{color:C.a,width:2.5},areaStyle:{color:'rgba(111,183,168,.08)'}}),
+   ln('Forecast ('+st.W+'d)',st.fc,C.p,{lineStyle:{color:C.p,width:1.8,type:'dashed'}}),
+   ln('Average to date',st.avg,C.bl,{yAxisIndex:1}),
+   ln('7-day rate',st.roll,C.m,{yAxisIndex:1,lineStyle:{color:C.m,width:1.5,type:'dashed'}}),
+   {name:'Daily',type:'bar',yAxisIndex:1,data:st.daily,itemStyle:{color:'rgba(216,164,127,.55)'},barMaxWidth:6},
+   ln('Avg change (7d)',st.trend,C.w,{xAxisIndex:1,yAxisIndex:2,markLine:{silent:true,symbol:'none',lineStyle:{color:C.m,type:'dotted'},data:[{yAxis:0}],label:{show:false}}}),
+   ln('Gap vs forecast',st.gap,C.p,{xAxisIndex:1,yAxisIndex:3,lineStyle:{color:C.p,width:1.5}})],
+  dataZoom:[{type:'inside',xAxisIndex:[0,1],start:z.start,end:z.end,filterMode:'none'},
+   {type:'slider',xAxisIndex:[0,1],start:z.start,end:z.end,bottom:6,height:22,borderColor:C.g,fillerColor:'rgba(111,183,168,.15)',textStyle:{color:C.m},handleStyle:{color:C.a}}]},true);
+ const mx=Math.max(...st.dow),order=[1,2,3,4,5,6,0],nm=['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+ bar('dow',order.map(i=>nm[i]),order.map(i=>({value:st.dow[i],itemStyle:{color:st.dow[i]===mx&&mx>0?C.w:C.bl}})));
+ const hm=Math.max(...st.hod);
+ bar('hod',st.hod.map((_,i)=>p2(i)),st.hod.map(v=>({value:v,itemStyle:{color:v===hm&&hm>0?C.w:C.a}})));
+ $('#hnote').textContent=`${st.exact} timed records shown; ${E.length-st.exact} date-only records are excluded here.`;
+ const di=mx>0?nm[st.dow.indexOf(mx)]:'–',hi=hm>0?p2(st.hod.indexOf(hm))+':00–'+p2(st.hod.indexOf(hm))+':59':'–';
+ const tg=Object.entries(st.tags).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`${esc(k)} ${pct(v,E.length)}`).join(' · ');
+ const mxT=Math.max(1,...Object.values(st.tags)),tile=(k,v,s)=>`<div class="tile"><div class="k">${k}</div><div class="v">${v}</div><div class="sub">${s}</div></div>`;
+ $('#pat').innerHTML=`<div class="tiles">`+
+  tile('Busiest weekday',di,mx>0?mx+' records':'no data')+
+  tile('Busiest hour',hm>0?p2(st.hod.indexOf(hm))+':00':'–',hm>0?hm+' timed records':'no timed data')+
+  tile('Weekend vs weekday',(st.wed?(st.we/st.wed).toFixed(2):'–')+' / '+(st.wkd?(st.wk/st.wkd).toFixed(2):'–'),'records per day')+
+  tile('Next-day slip',pct(st.a1,st.a0)+' / '+pct(st.b1,st.b0),'after a slip / after a clean day')+
+  `</div><div class="k" style="margin:16px 0 0">Tags</div>`+
+  (Object.entries(st.tags).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<div class="tg"><span>${esc(k)}</span><span class="sub">${v} · ${pct(v,E.length)}</span></div><div class="bar"><i style="width:${v/mxT*100}%"></i></div>`).join('')||'<div class="sub">No data yet.</div>')+
+  `<div class="sub p">Based on ${st.n} days. Patterns from small samples can be noise.</div>`;
+ $('#strk').innerHTML=st.runs.length?st.runs.slice(0,5).map(r=>`<div class="item"><span>${fmtD(st.labels[r[0]])} – ${fmtD(st.labels[r[1]])}${r[1]===st.n-1?' · ongoing':''}</span><b>${r[1]-r[0]+1} d</b></div>`).join(''):'<div class="sub">No clean days yet.</div>';
+ const from=st.start>ad(st.today,-364)?st.start:ad(st.today,-364),cd=[];
+ for(let d=from;d<=st.today;d=ad(d,1))cd.push([d,st.daily[dd(st.start,d)]]);
+ const MN=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],hideM=new Set();
+ if(+st.today.slice(8)<12)hideM.add(st.today.slice(0,7));
+ if(+from.slice(8)>21)hideM.add(from.slice(0,7));
+ gc('cal').setOption({animation:false,backgroundColor:'transparent',tooltip:{backgroundColor:'#1b232d',borderColor:C.g,textStyle:{color:C.t}},
+  visualMap:{show:false,type:'piecewise',pieces:[{value:0,color:'#1f4a42'},{value:1,color:'#7a5a3e'},{value:2,color:'#b8773f'},{gte:3,color:'#e8a15c'}],outOfRange:{color:'#e8a15c'}},
+  calendar:{top:24,left:30,right:10,cellSize:['auto',13],range:[from,st.today],itemStyle:{borderWidth:3,borderColor:'#151b23',color:'transparent'},yearLabel:{show:false},
+   monthLabel:{color:C.m,fontSize:10,formatter:p=>{const k=p.yyyy+'-'+String(p.MM).padStart(2,'0');return hideM.has(k)?'':MN[+p.MM-1]}},dayLabel:{color:C.m,firstDay:1},splitLine:{show:false}},
+  series:[{type:'heatmap',coordinateSystem:'calendar',data:cd}]},true);
+}
+function render(){calc();paintToday();paintHist();if(tab==='ins')paintCharts()}
+function go(t){tab=t;$$('section').forEach(s=>s.classList.toggle('on',s.id===t));$$('nav button').forEach(b=>b.classList.toggle('on',b.dataset.t===t));
+ if(t==='ins'){paintCharts();Object.values(CH).forEach(c=>c.resize())}window.scrollTo(0,0)}
+let tt;function toast(m,fn){$('#tm').textContent=m;const t=$('#toast');t.style.display='flex';$('#tu').style.display=fn?'':'none';$('#tu').onclick=()=>{t.style.display='none';fn&&fn()};clearTimeout(tt);tt=setTimeout(()=>t.style.display='none',6000)}
+const nowStr=()=>{const d=new Date();return `${ld(d)}T${p2(d.getHours())}:${p2(d.getMinutes())}`};
+async function logIt(){
+ let d=new Date();
+ if($('#bd').checked&&$('#when').value){const x=new Date($('#when').value);if(!isNaN(x)&&x<=new Date())d=x}
+ const ev={id:uid(),date:ld(d),ts:d.getTime(),tz:d.getTimezoneOffset(),precision:'exact',tag:$('#tag').value,note:$('#note').value.trim()};
+ await put(ev);E.push(ev);$('#note').value='';render();
+ toast('Logged',async()=>{await del(ev.id);E=E.filter(e=>e.id!==ev.id);render()});
+ if(navigator.vibrate)navigator.vibrate(20);
+}
+async function importFile(f){
+ try{
+  const j=JSON.parse(await f.text()),arr=Array.isArray(j)?j:j.events;if(!Array.isArray(arr))throw new Error('format');
+  const have=new Set(E.map(e=>e.id)),add=[];let skip=0;
+  for(const r of arr){
+   if(!r||typeof r!=='object')continue;
+   let ts=r.ts!=null?+r.ts:(r.timestamp?Date.parse(r.timestamp):null);if(ts!=null&&isNaN(ts))ts=null;
+   const hist=/histor/i.test(r.tag||'')||r.precision==='day';
+   const date=/^\d{4}-\d{2}-\d{2}$/.test(r.date||'')?r.date:(ts!=null?ld(new Date(ts)):null);
+   if(!date)continue;
+   const base=String(r.id||'i'+date+Math.random().toString(36).slice(2,8)),cnt=Math.max(1,Math.min(20,parseInt(r.count)||1));
+   for(let k=0;k<cnt;k++){
+    const id=k?base+'#'+k:base;if(have.has(id)){skip++;continue}have.add(id);
+    add.push({id,date,ts:hist?null:ts,tz:r.tz!=null?r.tz:new Date().getTimezoneOffset(),precision:hist||ts==null?'day':'exact',tag:hist?'Historical':String(r.tag||'General'),note:String(r.note||'')});
+   }
+  }
+  await put(add);E.push(...add);render();toast(`Imported ${add.length}, skipped ${skip} duplicates`);
+ }catch(e){toast('Could not read that file')}
+}
+function dl(name,type,text){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type}));a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
+function exportCSV(){
+ const q=s=>'"'+String(s==null?'':s).replace(/"/g,'""')+'"';
+ const rows=[...E].sort((a,b)=>a.date.localeCompare(b.date)||((a.ts||0)-(b.ts||0))).map(e=>{
+  const t=e.precision==='exact'&&e.ts?(d=>`${p2(d.getHours())}:${p2(d.getMinutes())}:${p2(d.getSeconds())}`)(new Date(e.ts)):'';
+  return [q(e.id),e.date,t,e.precision,q(e.tag),q(e.note)].join(',')});
+ dl('habit_tracker.csv','text/csv',['id,date,time,precision,tag,note',...rows].join('\n'));
+}
+async function enableNotif(){
+ if(!('Notification' in window)){toast('Notifications not supported here');return}
+ const p=await Notification.requestPermission();
+ if(p!=='granted'){toast('Permission not granted');return}
+ try{const reg=await navigator.serviceWorker.ready;await reg.periodicSync.register('daily-checkin',{minInterval:864e5})}catch(e){}
+ S.notif=true;save();toast('Reminders enabled');
+}
+function tick(){
+ if(!S.notif||!S.remind||!('Notification' in window)||Notification.permission!=='granted')return;
+ const n=new Date(),k=ld(n);
+ if(p2(n.getHours())+':'+p2(n.getMinutes())>=S.remind&&S.fired!==k){S.fired=k;save();
+  navigator.serviceWorker.ready.then(r=>r.showNotification('Daily check-in',{body:st.cur+' days since your last record. Take a moment to review today.',icon:'icon-192.png',badge:'icon-192.png',tag:'daily'}))}
+}
+let dp=null;
+window.addEventListener('beforeinstallprompt',e=>{e.preventDefault();dp=e;$('#inst').style.display='block'});
+$('#inst').onclick=()=>{if(dp){dp.prompt();dp=null;$('#inst').style.display='none'}};
+$('#tag').innerHTML=TAGS.map(t=>`<option>${t}</option>`).join('');
+$('#logb').onclick=logIt;
+$('#bd').onchange=e=>{const w=$('#when');w.style.display=e.target.checked?'block':'none';if(e.target.checked){w.max=nowStr();w.value=nowStr()}};
+$$('nav button').forEach(b=>b.onclick=()=>go(b.dataset.t));
+$('#rng').onclick=e=>{const b=e.target.closest('button');if(!b||!CH.main)return;
+ const v=b.dataset.d,days=v==='ytd'?dd(st.today.slice(0,4)+'-01-01',st.today)+1:+v;
+ const s=days?Math.max(0,100-days/st.n*100):0;
+ CH.main.dispatchAction({type:'dataZoom',batch:[{dataZoomIndex:0,start:s,end:100},{dataZoomIndex:1,start:s,end:100}]})};
+$('#fw').onclick=e=>{const b=e.target.closest('button');if(!b)return;S.fw=+b.dataset.w;save();render()};
+$('#hl').onclick=async e=>{
+ const ed=e.target.dataset.ed,dl_=e.target.dataset.dl;
+ if(ed){const r=E.find(x=>x.id===ed),v=prompt('Edit note',r.note);if(v!==null){r.note=v.trim();await put(r);render()}}
+ if(dl_&&confirm('Delete this record?')){await del(dl_);E=E.filter(x=>x.id!==dl_);render()}};
+$('#start').value=S.start;$('#remind').value=S.remind;
+$('#start').onchange=e=>{if(e.target.value){S.start=e.target.value;save();render()}};
+$('#remind').onchange=e=>{S.remind=e.target.value;S.fired='';save()};
+$('#notif').onclick=enableNotif;
+$('#exj').onclick=()=>dl('habit_tracker_backup.json','application/json',JSON.stringify({app:'habit-tracker',version:1,exported:new Date().toISOString(),settings:S,events:E},null,2));
+$('#exc').onclick=exportCSV;
+$('#imp').onclick=()=>$('#file').click();
+$('#file').onchange=e=>{if(e.target.files[0])importFile(e.target.files[0]);e.target.value=''};
+$('#wipe').onclick=async()=>{if(confirm('Delete ALL records permanently? Export a backup first.')&&confirm('Really delete everything?')){await clr();E=[];render();toast('All data deleted')}};
+window.addEventListener('resize',()=>Object.values(CH).forEach(c=>c.resize()));
+document.addEventListener('visibilitychange',()=>{if(!document.hidden){render();tick()}});
+(async()=>{
+ try{E=await all()||[]}catch(e){toast('Storage unavailable')}
+ if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();
+ render();tick();setInterval(tick,30000);
+ if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js').catch(()=>{});
+})();
+</script></body></html>
